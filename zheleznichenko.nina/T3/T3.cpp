@@ -6,7 +6,8 @@
 #include <algorithm>
 #include <functional>
 #include <iterator>
-#include <stdexcept>
+#include <iomanip>
+#include <numeric>
 
 struct Point {
   int x, y;
@@ -16,35 +17,61 @@ struct Polygon {
   std::vector<Point> points;
 };
 
-void skipSpaces(std::istream& is) {
-  while (is.peek() == ' ' || is.peek() == '\t') {
-    is.ignore();
+double getArea(const Polygon& p) {
+  if (p.points.size() < 3) return 0.0;
+  double area = 0.0;
+  for (size_t i = 0; i < p.points.size(); ++i) {
+    const Point& p1 = p.points[i];
+    const Point& p2 = p.points[(i + 1) % p.points.size()];
+    area += (p1.x * p2.y - p2.x * p1.y);
   }
+  return std::abs(area) / 2.0;
 }
 
-Point readPoint(std::istream& is) {
-  char open = 0, semi = 0, close = 0;
-  int x = 0, y = 0;
+bool hasRightAngle(const Polygon& p) {
+  size_t n = p.points.size();
+  for (size_t i = 0; i < n; ++i) {
+    Point a = p.points[i];
+    Point b = p.points[(i + 1) % n];
+    Point c = p.points[(i + 2) % n];
 
-  skipSpaces(is);
-  if (!(is >> open) || open != '(') { is.setstate(std::ios::failbit); return { 0,0 }; }
-  if (!(is >> x)) { is.setstate(std::ios::failbit); return { 0,0 }; }
-  skipSpaces(is);
-  if (!(is >> semi) || semi != ';') { is.setstate(std::ios::failbit); return { 0,0 }; }
-  if (!(is >> y)) { is.setstate(std::ios::failbit); return { 0,0 }; }
-  skipSpaces(is);
-  if (!(is >> close) || close != ')') { is.setstate(std::ios::failbit); return { 0,0 }; }
-
-  return Point{ x, y };
+    long long v1x = a.x - b.x;
+    long long v1y = a.y - b.y;
+    long long v2x = c.x - b.x;
+    long long v2y = c.y - b.y;
+    if (v1x * v2x + v1y * v2y == 0) return true;
+  }
+  return false;
 }
 
-bool equalPoints(const Point& a, const Point& b) {
-  return a.x == b.x && a.y == b.y;
+std::istream& operator>>(std::istream& is, Point& p) {
+  char ch = 0;
+  is >> std::noskipws;
+  is >> ch; if (ch != '(') is.setstate(std::ios::failbit);
+  is >> std::skipws >> p.x;
+  is >> std::noskipws >> ch; if (ch != ';') is.setstate(std::ios::failbit);
+  is >> std::skipws >> p.y;
+  is >> std::noskipws >> ch; if (ch != ')') is.setstate(std::ios::failbit);
+  return is;
 }
 
-bool pointLess(const Point& a, const Point& b) {
-  return (a.x < b.x) || (a.x == b.x && a.y < b.y);
+bool parsePolygon(const std::string& line, Polygon& poly) {
+  std::istringstream iss(line);
+  size_t n;
+  if (!(iss >> n) || n < 3) return false;
+  poly.points.clear();
+  for (size_t i = 0; i < n; ++i) {
+    Point p;
+    if (!(iss >> std::skipws >> p)) return false;
+    poly.points.push_back(p);
+  }
+  std::string extra;
+  if (iss >> extra) return false;
+  return true;
 }
+
+bool equalPoints(const Point& a, const Point& b) { return a.x == b.x && a.y == b.y; }
+bool pointLess(const Point& a, const Point& b) { return a.x < b.x || (a.x == b.x && a.y < b.y); }
 
 bool isPerm(const Polygon& a, const Polygon& b) {
   if (a.points.size() != b.points.size()) return false;
@@ -52,34 +79,6 @@ bool isPerm(const Polygon& a, const Polygon& b) {
   std::sort(pa.begin(), pa.end(), pointLess);
   std::sort(pb.begin(), pb.end(), pointLess);
   return std::equal(pa.begin(), pa.end(), pb.begin(), equalPoints);
-}
-
-int dotProduct(Point a, Point b, Point c) {
-  return (a.x - b.x) * (c.x - b.x) + (a.y - b.y) * (c.y - b.y);
-}
-
-bool isRightTriangle(const Polygon& p) {
-  if (p.points.size() != 3) return false;
-  return dotProduct(p.points[0], p.points[1], p.points[2]) == 0 ||
-    dotProduct(p.points[1], p.points[0], p.points[2]) == 0 ||
-    dotProduct(p.points[0], p.points[2], p.points[1]) == 0;
-}
-
-Polygon parsePolygon(const std::string& line) {
-  if (line.empty()) throw std::runtime_error("empty");
-  std::istringstream iss(line);
-  int n = 0;
-  if (!(iss >> n) || n < 3) throw std::runtime_error("bad n");
-
-  Polygon poly;
-  std::generate_n(std::back_inserter(poly.points), n, std::bind(readPoint, std::ref(iss)));
-
-  if (iss.fail()) throw std::runtime_error("bad format");
-
-  std::string extra;
-  if (iss >> extra) throw std::runtime_error("extra data");
-
-  return poly;
 }
 
 int main(int argc, char* argv[]) {
@@ -90,35 +89,80 @@ int main(int argc, char* argv[]) {
   std::vector<Polygon> data;
   std::string line;
   while (std::getline(file, line)) {
-    try {
-      if (!line.empty()) {
-        data.push_back(parsePolygon(line));
-      }
-    }
-    catch (...) {
-    }
+    Polygon p;
+    if (parsePolygon(line, p)) data.push_back(p);
   }
 
+  std::cout << std::fixed << std::setprecision(1);
   std::string cmd;
   while (std::cin >> cmd) {
-    try {
-      if (cmd == "PERMS") {
-        std::string rest;
-        std::getline(std::cin, rest);
-        Polygon target = parsePolygon(rest);
-        std::cout << std::count_if(data.begin(), data.end(),
-          std::bind(isPerm, std::placeholders::_1, target)) << "\n";
+    if (cmd == "AREA") {
+      std::string arg; std::cin >> arg;
+      double sum = 0;
+      if (arg == "EVEN") {
+        for (const auto& p : data) if (p.points.size() % 2 == 0) sum += getArea(p);
+        std::cout << sum << "\n";
       }
-      else if (cmd == "RIGHTSHAPES") {
-        std::cout << std::count_if(data.begin(), data.end(), isRightTriangle) << "\n";
+      else if (arg == "ODD") {
+        for (const auto& p : data) if (p.points.size() % 2 != 0) sum += getArea(p);
+        std::cout << sum << "\n";
+      }
+      else if (arg == "MEAN") {
+        if (data.empty()) { std::cout << "<INVALID COMMAND>\n"; continue; }
+        for (const auto& p : data) sum += getArea(p);
+        std::cout << sum / data.size() << "\n";
       }
       else {
-        std::cout << "<INVALID COMMAND>\n";
-        std::cin.ignore(10000, '\n');
+        try {
+          size_t n = std::stoul(arg);
+          if (n < 3) throw std::invalid_argument("");
+          for (const auto& p : data) if (p.points.size() == n) sum += getArea(p);
+          std::cout << sum << "\n";
+        }
+        catch (...) { std::cout << "<INVALID COMMAND>\n"; }
       }
     }
-    catch (...) {
+    else if (cmd == "MAX") {
+      std::string arg; std::cin >> arg;
+      if (data.empty()) { std::cout << "<INVALID COMMAND>\n"; continue; }
+      if (arg == "AREA") {
+        double maxA = 0;
+        for (const auto& p : data) maxA = std::max(maxA, getArea(p));
+        std::cout << maxA << "\n";
+      }
+      else if (arg == "VERTEXES") {
+        size_t maxV = 0;
+        for (const auto& p : data) maxV = std::max(maxV, p.points.size());
+        std::cout << maxV << "\n";
+      }
+      else std::cout << "<INVALID COMMAND>\n";
+    }
+    else if (cmd == "COUNT") {
+      std::string arg; std::cin >> arg;
+      if (arg == "EVEN") std::cout << std::count_if(data.begin(), data.end(), [](const Polygon& p) {return p.points.size() % 2 == 0;}) << "\n";
+      else if (arg == "ODD") std::cout << std::count_if(data.begin(), data.end(), [](const Polygon& p) {return p.points.size() % 2 != 0;}) << "\n";
+      else {
+        try {
+          size_t n = std::stoul(arg);
+          if (n < 3) throw std::invalid_argument("");
+          std::cout << std::count_if(data.begin(), data.end(), [n](const Polygon& p) {return p.points.size() == n;}) << "\n";
+        }
+        catch (...) { std::cout << "<INVALID COMMAND>\n"; }
+      }
+    }
+    else if (cmd == "PERMS") {
+      std::string rest; std::getline(std::cin, rest);
+      Polygon target;
+      if (parsePolygon(rest, target))
+        std::cout << std::count_if(data.begin(), data.end(), std::bind(isPerm, std::placeholders::_1, target)) << "\n";
+      else std::cout << "<INVALID COMMAND>\n";
+    }
+    else if (cmd == "RIGHTSHAPES") {
+      std::cout << std::count_if(data.begin(), data.end(), hasRightAngle) << "\n";
+    }
+    else {
       std::cout << "<INVALID COMMAND>\n";
+      std::cin.ignore(10000, '\n');
     }
   }
   return 0;
