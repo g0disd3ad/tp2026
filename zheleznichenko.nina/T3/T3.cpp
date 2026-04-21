@@ -35,10 +35,10 @@ bool hasRightAngle(const Polygon& p) {
     Point a = p.points[i];
     Point b = p.points[(i + 1) % n];
     Point c = p.points[(i + 2) % n];
-    long long v1x = a.x - b.x;
-    long long v1y = a.y - b.y;
-    long long v2x = c.x - b.x;
-    long long v2y = c.y - b.y;
+    long long v1x = static_cast<long long>(a.x) - b.x;
+    long long v1y = static_cast<long long>(a.y) - b.y;
+    long long v2x = static_cast<long long>(c.x) - b.x;
+    long long v2y = static_cast<long long>(c.y) - b.y;
     if (v1x * v2x + v1y * v2y == 0) return true;
   }
   return false;
@@ -47,31 +47,27 @@ bool hasRightAngle(const Polygon& p) {
 std::istream& readPoint(std::istream& is, Point& p) {
   char ch = 0;
   is >> std::noskipws;
-  if (!(is >> ch) || ch != '(') is.setstate(std::ios::failbit);
-  if (!(is >> std::skipws >> p.x)) return is;
-  if (!(is >> std::noskipws >> ch) || ch != ';') is.setstate(std::ios::failbit);
-  if (!(is >> std::skipws >> p.y)) return is;
-  if (!(is >> std::noskipws >> ch) || ch != ')') is.setstate(std::ios::failbit);
+  is >> std::skipws >> ch;
+  if (is && ch != '(') is.setstate(std::ios::failbit);
+  is >> std::skipws >> p.x;
+  is >> std::skipws >> ch;
+  if (is && ch != ';') is.setstate(std::ios::failbit);
+  is >> std::skipws >> p.y;
+  is >> std::skipws >> ch;
+  if (is && ch != ')') is.setstate(std::ios::failbit);
   return is;
 }
 
-Point pointGenerator(std::istream& is) {
-  Point p;
-  if (!(readPoint(is, p))) throw std::runtime_error("bad point");
-  return p;
-}
-
 bool parsePolygon(const std::string& line, Polygon& poly) {
+  if (line.empty()) return false;
   std::istringstream iss(line);
   size_t n;
   if (!(iss >> n) || n < 3) return false;
   poly.points.clear();
-  try {
-    std::generate_n(std::back_inserter(poly.points), n,
-      std::bind(pointGenerator, std::ref(iss)));
-  }
-  catch (...) {
-    return false;
+  for (size_t i = 0; i < n; ++i) {
+    Point p;
+    if (!(readPoint(iss, p))) return false;
+    poly.points.push_back(p);
   }
   std::string extra;
   if (iss >> extra) return false;
@@ -125,7 +121,7 @@ int main(int argc, char* argv[]) {
         std::cout << sum << "\n";
       }
       else if (arg == "MEAN") {
-        if (data.empty()) { std::cout << "<INVALID COMMAND>\n"; }
+        if (data.empty()) std::cout << "<INVALID COMMAND>\n";
         else {
           for (size_t i = 0; i < data.size(); ++i) sum += getArea(data[i]);
           std::cout << sum / static_cast<double>(data.size()) << "\n";
@@ -134,7 +130,6 @@ int main(int argc, char* argv[]) {
       else {
         try {
           size_t n = std::stoul(arg);
-          if (n < 3) throw std::invalid_argument("");
           for (size_t i = 0; i < data.size(); ++i)
             if (isSizeN(data[i], n)) sum += getArea(data[i]);
           std::cout << sum << "\n";
@@ -144,8 +139,8 @@ int main(int argc, char* argv[]) {
     }
     else if (cmd == "MAX") {
       std::string arg; std::cin >> arg;
-      if (data.empty()) { std::cout << "<INVALID COMMAND>\n"; continue; }
-      if (arg == "AREA") {
+      if (data.empty()) std::cout << "<INVALID COMMAND>\n";
+      else if (arg == "AREA") {
         double maxA = 0;
         for (size_t i = 0; i < data.size(); ++i)
           maxA = std::max(maxA, getArea(data[i]));
@@ -168,7 +163,6 @@ int main(int argc, char* argv[]) {
       else {
         try {
           size_t n = std::stoul(arg);
-          if (n < 3) throw std::invalid_argument("");
           std::cout << std::count_if(data.begin(), data.end(),
             std::bind(isSizeN, std::placeholders::_1, n)) << "\n";
         }
@@ -184,8 +178,7 @@ int main(int argc, char* argv[]) {
       else std::cout << "<INVALID COMMAND>\n";
     }
     else if (cmd == "RIGHTSHAPES") {
-      std::cout << std::count_if(data.begin(), data.end(),
-        hasRightAngle) << "\n";
+      std::cout << std::count_if(data.begin(), data.end(), hasRightAngle) << "\n";
     }
     else {
       std::cout << "<INVALID COMMAND>\n";
