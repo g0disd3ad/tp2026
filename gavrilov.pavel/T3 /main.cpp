@@ -14,17 +14,17 @@
 
 struct Point {
     int x, y;
-
+    
     Point(int x = 0, int y = 0) : x(x), y(y) {}
-
+    
     bool operator==(const Point& other) const {
         return x == other.x && y == other.y;
     }
-
+    
     bool operator!=(const Point& other) const {
         return !(*this == other);
     }
-
+    
     bool operator<(const Point& other) const {
         if (x != other.x) return x < other.x;
         return y < other.y;
@@ -38,7 +38,7 @@ std::ostream& operator<<(std::ostream& out, const Point& p) {
 
 struct Polygon {
     std::vector<Point> points;
-
+    
     bool operator==(const Polygon& other) const {
         if (points.size() != other.points.size()) return false;
         for (size_t i = 0; i < points.size(); ++i) {
@@ -46,55 +46,52 @@ struct Polygon {
         }
         return true;
     }
-
+    
     bool operator!=(const Polygon& other) const {
         return !(*this == other);
     }
-
+    
     size_t getVertexCount() const {
         return points.size();
     }
-
+    
     double getArea() const {
         if (points.size() < 3) return 0.0;
-
+        
         double area = 0.0;
         for (size_t i = 0; i < points.size(); ++i) {
             const Point& p1 = points[i];
             const Point& p2 = points[(i + 1) % points.size()];
             area += p1.x * p2.y - p2.x * p1.y;
         }
-        area = std::abs(area) / 2.0;
-        return area;
+        return std::abs(area) / 2.0;
     }
-
+    
     Point getMinPoint() const {
         if (points.empty()) return Point(0, 0);
-        int minX = points[0].x;
-        int minY = points[0].y;
-        for (const auto& p : points) {
-            if (p.x < minX) minX = p.x;
-            if (p.y < minY) minY = p.y;
-        }
-        return Point(minX, minY);
+        auto it = std::min_element(points.begin(), points.end(),
+            [](const Point& a, const Point& b) {
+                if (a.x != b.x) return a.x < b.x;
+                return a.y < b.y;
+            });
+        return *it;
     }
-
+    
     Point getMaxPoint() const {
         if (points.empty()) return Point(0, 0);
-        int maxX = points[0].x;
-        int maxY = points[0].y;
-        for (const auto& p : points) {
-            if (p.x > maxX) maxX = p.x;
-            if (p.y > maxY) maxY = p.y;
-        }
-        return Point(maxX, maxY);
+        auto it = std::max_element(points.begin(), points.end(),
+            [](const Point& a, const Point& b) {
+                if (a.x != b.x) return a.x < b.x;
+                return a.y < b.y;
+            });
+        return *it;
     }
-
+    
     bool isInsideBoundingBox(const Point& minBound, const Point& maxBound) const {
         Point minP = getMinPoint();
         Point maxP = getMaxPoint();
         return minP.x >= minBound.x && minP.y >= minBound.y &&
-            maxP.x <= maxBound.x && maxP.y <= maxBound.y;
+               maxP.x <= maxBound.x && maxP.y <= maxBound.y;
     }
 };
 
@@ -119,8 +116,7 @@ bool parsePoint(const std::string& token, Point& p) {
         p.x = std::stoi(inner.substr(0, semicolonPos));
         p.y = std::stoi(inner.substr(semicolonPos + 1));
         return true;
-    }
-    catch (...) {
+    } catch (...) {
         return false;
     }
 }
@@ -134,7 +130,7 @@ bool parsePolygon(const std::string& line, Polygon& poly) {
     if (vertexCount < 3) {
         return false;
     }
-
+    
     std::vector<Point> points;
     for (int i = 0; i < vertexCount; ++i) {
         std::string token;
@@ -147,31 +143,30 @@ bool parsePolygon(const std::string& line, Polygon& poly) {
         }
         points.push_back(p);
     }
-
+    
     std::string extra;
     if (iss >> extra) {
         return false;
     }
-
+    
     poly.points = points;
     return true;
 }
 
 bool parsePolygonFromArgs(const std::vector<std::string>& args, size_t start, Polygon& poly) {
     if (start >= args.size()) return false;
-
+    
     int vertexCount;
     try {
         vertexCount = std::stoi(args[start]);
-    }
-    catch (...) {
+    } catch (...) {
         return false;
     }
-
+    
     if (vertexCount < 3 || start + 1 + vertexCount > args.size()) {
         return false;
     }
-
+    
     std::vector<Point> points;
     for (int i = 0; i < vertexCount; ++i) {
         Point p;
@@ -180,163 +175,188 @@ bool parsePolygonFromArgs(const std::vector<std::string>& args, size_t start, Po
         }
         points.push_back(p);
     }
-
+    
     poly.points = points;
     return true;
 }
 
+template<bool Odd>
+struct SumAreaByParity {
+    double operator()(double sum, const Polygon& poly) const {
+        bool isOdd = (poly.getVertexCount() % 2 == 1);
+        if (isOdd == Odd) {
+            return sum + poly.getArea();
+        }
+        return sum;
+    }
+};
+
+struct SumAreaByVertexCount {
+    int target_;
+    SumAreaByVertexCount(int target) : target_(target) {}
+    double operator()(double sum, const Polygon& poly) const {
+        if (static_cast<int>(poly.getVertexCount()) == target_) {
+            return sum + poly.getArea();
+        }
+        return sum;
+    }
+};
+
+struct SumArea {
+    double operator()(double sum, const Polygon& poly) const {
+        return sum + poly.getArea();
+    }
+};
+
+template<bool Odd>
+struct CountByParity {
+    bool operator()(const Polygon& poly) const {
+        bool isOdd = (poly.getVertexCount() % 2 == 1);
+        return isOdd == Odd;
+    }
+};
+
+struct CountByVertexCount {
+    int target_;
+    CountByVertexCount(int target) : target_(target) {}
+    bool operator()(const Polygon& poly) const {
+        return static_cast<int>(poly.getVertexCount()) == target_;
+    }
+};
+
+struct CompareArea {
+    bool operator()(const Polygon& a, const Polygon& b) const {
+        return a.getArea() < b.getArea();
+    }
+};
+
+struct CompareVertexCount {
+    bool operator()(const Polygon& a, const Polygon& b) const {
+        return a.getVertexCount() < b.getVertexCount();
+    }
+};
+
+struct CompareMinPoint {
+    bool operator()(const Polygon& a, const Polygon& b) const {
+        Point minA = a.getMinPoint();
+        Point minB = b.getMinPoint();
+        if (minA.x != minB.x) return minA.x < minB.x;
+        return minA.y < minB.y;
+    }
+};
+
+struct CompareMaxPoint {
+    bool operator()(const Polygon& a, const Polygon& b) const {
+        Point maxA = a.getMaxPoint();
+        Point maxB = b.getMaxPoint();
+        if (maxA.x != maxB.x) return maxA.x < maxB.x;
+        return maxA.y < maxB.y;
+    }
+};
+
 class PolygonCollection {
 private:
     std::vector<Polygon> polygons_;
-
+    
 public:
     void addPolygon(const Polygon& poly) {
         polygons_.push_back(poly);
     }
-
+    
     const std::vector<Polygon>& getPolygons() const {
         return polygons_;
     }
-
+    
     size_t size() const {
         return polygons_.size();
     }
-
+    
     double getAreaSumByVertexCount(int vertexCount) const {
-        double sum = 0.0;
-        for (const auto& poly : polygons_) {
-            if (static_cast<int>(poly.getVertexCount()) == vertexCount) {
-                sum += poly.getArea();
-            }
-        }
-        return sum;
+        return std::accumulate(polygons_.begin(), polygons_.end(), 0.0, SumAreaByVertexCount(vertexCount));
     }
-
+    
     double getAreaSumByParity(bool odd) const {
-        double sum = 0.0;
-        for (const auto& poly : polygons_) {
-            bool isOdd = (poly.getVertexCount() % 2 == 1);
-            if (isOdd == odd) {
-                sum += poly.getArea();
-            }
+        if (odd) {
+            return std::accumulate(polygons_.begin(), polygons_.end(), 0.0, SumAreaByParity<true>());
+        } else {
+            return std::accumulate(polygons_.begin(), polygons_.end(), 0.0, SumAreaByParity<false>());
         }
-        return sum;
     }
-
+    
     double getMeanArea() const {
         if (polygons_.empty()) {
             throw std::runtime_error("No shapes");
         }
-        double sum = 0.0;
-        for (const auto& poly : polygons_) {
-            sum += poly.getArea();
-        }
+        double sum = std::accumulate(polygons_.begin(), polygons_.end(), 0.0, SumArea());
         return sum / polygons_.size();
     }
-
+    
     double getMaxArea() const {
         if (polygons_.empty()) {
             throw std::runtime_error("No shapes");
         }
-        double maxArea = polygons_[0].getArea();
-        for (const auto& poly : polygons_) {
-            double area = poly.getArea();
-            if (area > maxArea) maxArea = area;
-        }
-        return maxArea;
+        auto it = std::max_element(polygons_.begin(), polygons_.end(), CompareArea());
+        return it->getArea();
     }
-
+    
     size_t getMaxVertexCount() const {
         if (polygons_.empty()) {
             throw std::runtime_error("No shapes");
         }
-        size_t maxVert = polygons_[0].getVertexCount();
-        for (const auto& poly : polygons_) {
-            size_t vert = poly.getVertexCount();
-            if (vert > maxVert) maxVert = vert;
-        }
-        return maxVert;
+        auto it = std::max_element(polygons_.begin(), polygons_.end(), CompareVertexCount());
+        return it->getVertexCount();
     }
-
+    
     double getMinArea() const {
         if (polygons_.empty()) {
             throw std::runtime_error("No shapes");
         }
-        double minArea = polygons_[0].getArea();
-        for (const auto& poly : polygons_) {
-            double area = poly.getArea();
-            if (area < minArea) minArea = area;
-        }
-        return minArea;
+        auto it = std::min_element(polygons_.begin(), polygons_.end(), CompareArea());
+        return it->getArea();
     }
-
+    
     size_t getMinVertexCount() const {
         if (polygons_.empty()) {
             throw std::runtime_error("No shapes");
         }
-        size_t minVert = polygons_[0].getVertexCount();
-        for (const auto& poly : polygons_) {
-            size_t vert = poly.getVertexCount();
-            if (vert < minVert) minVert = vert;
-        }
-        return minVert;
+        auto it = std::min_element(polygons_.begin(), polygons_.end(), CompareVertexCount());
+        return it->getVertexCount();
     }
-
+    
     size_t countByVertexCount(int vertexCount) const {
-        size_t cnt = 0;
-        for (const auto& poly : polygons_) {
-            if (static_cast<int>(poly.getVertexCount()) == vertexCount) {
-                cnt++;
-            }
-        }
-        return cnt;
+        return std::count_if(polygons_.begin(), polygons_.end(), CountByVertexCount(vertexCount));
     }
-
+    
     size_t countByParity(bool odd) const {
-        size_t cnt = 0;
-        for (const auto& poly : polygons_) {
-            bool isOdd = (poly.getVertexCount() % 2 == 1);
-            if (isOdd == odd) {
-                cnt++;
-            }
+        if (odd) {
+            return std::count_if(polygons_.begin(), polygons_.end(), CountByParity<true>());
+        } else {
+            return std::count_if(polygons_.begin(), polygons_.end(), CountByParity<false>());
         }
-        return cnt;
     }
-
+    
     Point getGlobalMinPoint() const {
         if (polygons_.empty()) {
             return Point(0, 0);
         }
-        int minX = polygons_[0].getMinPoint().x;
-        int minY = polygons_[0].getMinPoint().y;
-        for (const auto& poly : polygons_) {
-            Point p = poly.getMinPoint();
-            if (p.x < minX) minX = p.x;
-            if (p.y < minY) minY = p.y;
-        }
-        return Point(minX, minY);
+        auto it = std::min_element(polygons_.begin(), polygons_.end(), CompareMinPoint());
+        return it->getMinPoint();
     }
-
+    
     Point getGlobalMaxPoint() const {
         if (polygons_.empty()) {
             return Point(0, 0);
         }
-        int maxX = polygons_[0].getMaxPoint().x;
-        int maxY = polygons_[0].getMaxPoint().y;
-        for (const auto& poly : polygons_) {
-            Point p = poly.getMaxPoint();
-            if (p.x > maxX) maxX = p.x;
-            if (p.y > maxY) maxY = p.y;
-        }
-        return Point(maxX, maxY);
+        auto it = std::max_element(polygons_.begin(), polygons_.end(), CompareMaxPoint());
+        return it->getMaxPoint();
     }
-
+    
     int removeConsecutiveDuplicates(const Polygon& target) {
         if (polygons_.empty()) return 0;
-
+        
         int removed = 0;
         std::vector<Polygon> result;
-
+        
         for (size_t i = 0; i < polygons_.size(); ++i) {
             if (polygons_[i] == target) {
                 if (i > 0 && result.back() == target) {
@@ -346,11 +366,11 @@ public:
             }
             result.push_back(polygons_[i]);
         }
-
+        
         polygons_ = result;
         return removed;
     }
-
+    
     bool isInsideGlobalBoundingBox(const Polygon& poly) const {
         if (polygons_.empty()) {
             return true;
@@ -359,7 +379,7 @@ public:
         Point maxBound = getGlobalMaxPoint();
         return poly.isInsideBoundingBox(minBound, maxBound);
     }
-
+    
     void print() const {
         for (const auto& poly : polygons_) {
             std::cout << poly << std::endl;
@@ -368,175 +388,156 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-
     if (argc < 2) {
         std::cerr << "Error: filename not specified" << std::endl;
         return 1;
     }
-
+    
     std::ifstream file(argv[1]);
     if (!file.is_open()) {
         std::cerr << "Error: cannot open file " << argv[1] << std::endl;
         return 1;
     }
-
+    
     PolygonCollection collection;
     std::string line;
-
+    
     while (std::getline(file, line)) {
         if (line.empty()) continue;
-
+        
         Polygon poly;
         if (parsePolygon(line, poly)) {
             collection.addPolygon(poly);
         }
     }
-
+    
     file.close();
-
+    
     std::string cmdLine;
     while (std::getline(std::cin, cmdLine)) {
         if (cmdLine.empty()) continue;
-
+        
         std::istringstream iss(cmdLine);
         std::string command;
         iss >> command;
-
+        
         try {
             if (command == "AREA") {
                 std::string param;
                 iss >> param;
-
+                
                 if (param == "EVEN") {
                     double sum = collection.getAreaSumByParity(false);
                     std::cout << std::fixed << std::setprecision(1) << sum << std::endl;
-                }
-                else if (param == "ODD") {
+                } else if (param == "ODD") {
                     double sum = collection.getAreaSumByParity(true);
                     std::cout << std::fixed << std::setprecision(1) << sum << std::endl;
-                }
-                else if (param == "MEAN") {
+                } else if (param == "MEAN") {
                     double mean = collection.getMeanArea();
                     std::cout << std::fixed << std::setprecision(1) << mean << std::endl;
-                }
-                else {
+                } else {
                     int vertexCount;
                     try {
                         vertexCount = std::stoi(param);
                         double sum = collection.getAreaSumByVertexCount(vertexCount);
                         std::cout << std::fixed << std::setprecision(1) << sum << std::endl;
-                    }
-                    catch (...) {
+                    } catch (...) {
                         std::cout << "<INVALID COMMAND>" << std::endl;
                     }
                 }
-            }
-            else if (command == "MAX") {
+            } else if (command == "MAX") {
                 std::string param;
                 iss >> param;
-
+                
                 if (param == "AREA") {
                     double maxArea = collection.getMaxArea();
                     std::cout << std::fixed << std::setprecision(1) << maxArea << std::endl;
-                }
-                else if (param == "VERTEXES") {
+                } else if (param == "VERTEXES") {
                     size_t maxVert = collection.getMaxVertexCount();
                     std::cout << maxVert << std::endl;
-                }
-                else {
+                } else {
                     std::cout << "<INVALID COMMAND>" << std::endl;
                 }
-            }
-            else if (command == "MIN") {
+            } else if (command == "MIN") {
                 std::string param;
                 iss >> param;
-
+                
                 if (param == "AREA") {
                     double minArea = collection.getMinArea();
                     std::cout << std::fixed << std::setprecision(1) << minArea << std::endl;
-                }
-                else if (param == "VERTEXES") {
+                } else if (param == "VERTEXES") {
                     size_t minVert = collection.getMinVertexCount();
                     std::cout << minVert << std::endl;
-                }
-                else {
+                } else {
                     std::cout << "<INVALID COMMAND>" << std::endl;
                 }
-            }
-            else if (command == "COUNT") {
+            } else if (command == "COUNT") {
                 std::string param;
                 iss >> param;
-
+                
                 if (param == "EVEN") {
                     size_t cnt = collection.countByParity(false);
                     std::cout << cnt << std::endl;
-                }
-                else if (param == "ODD") {
+                } else if (param == "ODD") {
                     size_t cnt = collection.countByParity(true);
                     std::cout << cnt << std::endl;
-                }
-                else {
+                } else {
                     int vertexCount;
                     try {
                         vertexCount = std::stoi(param);
                         size_t cnt = collection.countByVertexCount(vertexCount);
                         std::cout << cnt << std::endl;
-                    }
-                    catch (...) {
+                    } catch (...) {
                         std::cout << "<INVALID COMMAND>" << std::endl;
                     }
                 }
-            }
-            else if (command == "RMECHO") {
+            } else if (command == "RMECHO") {
                 std::vector<std::string> args;
                 std::string arg;
                 while (iss >> arg) {
                     args.push_back(arg);
                 }
-
+                
                 if (args.empty()) {
                     std::cout << "<INVALID COMMAND>" << std::endl;
                     continue;
                 }
-
+                
                 Polygon target;
                 if (!parsePolygonFromArgs(args, 0, target)) {
                     std::cout << "<INVALID COMMAND>" << std::endl;
                     continue;
                 }
-
+                
                 int removed = collection.removeConsecutiveDuplicates(target);
                 std::cout << removed << std::endl;
-            }
-            else if (command == "INFRAME") {
+            } else if (command == "INFRAME") {
                 std::vector<std::string> args;
                 std::string arg;
                 while (iss >> arg) {
                     args.push_back(arg);
                 }
-
+                
                 if (args.empty()) {
                     std::cout << "<INVALID COMMAND>" << std::endl;
                     continue;
                 }
-
+                
                 Polygon target;
                 if (!parsePolygonFromArgs(args, 0, target)) {
                     std::cout << "<INVALID COMMAND>" << std::endl;
                     continue;
                 }
-
+                
                 bool result = collection.isInsideGlobalBoundingBox(target);
                 std::cout << (result ? "<TRUE>" : "<FALSE>") << std::endl;
-            }
-            else {
+            } else {
                 std::cout << "<INVALID COMMAND>" << std::endl;
             }
-        }
-        catch (const std::exception& e) {
+        } catch (const std::exception& e) {
             std::cout << "<INVALID COMMAND>" << std::endl;
         }
     }
-
+    
     return 0;
 }
