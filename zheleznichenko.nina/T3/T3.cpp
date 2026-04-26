@@ -33,7 +33,7 @@ struct AreaPartSum {
 double getArea(const Polygon& p) {
   if (p.points.size() < 3) return 0.0;
   double total = 0.0;
-  std::count_if(p.points.begin(), p.points.end(),
+  (void)std::count_if(p.points.begin(), p.points.end(),
     AreaPartSum(p.points, total));
   return std::abs(total) / 2.0;
 }
@@ -149,13 +149,13 @@ struct IsPermutation {
 int main(int argc, char* argv[]) {
   if (argc < 2) return 1;
   std::ifstream file(argv[1]);
+  if (!file) return 1;
   std::vector<Polygon> data;
   std::string line;
   while (std::getline(file, line)) {
     Polygon p;
     if (parsePolygon(line, p)) data.push_back(p);
   }
-
   std::string cmd;
   while (std::cin >> cmd) {
     if (cmd == "AREA") {
@@ -183,7 +183,7 @@ int main(int argc, char* argv[]) {
         catch (...) { std::cout << "<INVALID COMMAND>\n"; continue; }
       }
       double sum = 0;
-      std::count_if(sel.begin(), sel.end(), SumArea(sum));
+      (void)std::count_if(sel.begin(), sel.end(), SumArea(sum));
       std::cout << std::fixed << std::setprecision(1);
       std::cout << (arg == "MEAN" ? sum / data.size() : sum) << "\n";
     }
