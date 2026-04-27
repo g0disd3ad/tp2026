@@ -235,7 +235,7 @@ int main(int argc, char* argv[]) {
             else {
                 std::istringstream num_stream(sub);
                 std::size_t n;
-                if (num_stream >> n && num_stream.eof()) {
+                if (num_stream >> n && num_stream.eof() && n >= 3) {
                     std::cout << std::accumulate(polygons.begin(),
                         polygons.end(), 0.0,
                         AreaIfVertexCount(n)) << "\n";
@@ -301,7 +301,7 @@ int main(int argc, char* argv[]) {
             else {
                 std::istringstream num_stream(sub);
                 std::size_t n;
-                if (num_stream >> n && num_stream.eof()) {
+                if (num_stream >> n && num_stream.eof() && n >= 3) {
                     std::cout << std::count_if(polygons.begin(),
                         polygons.end(),
                         IsNumOfVertexes(n)) << "\n";
@@ -321,10 +321,16 @@ int main(int argc, char* argv[]) {
                 std::cout << "<INVALID COMMAND>\n";
             }
             else {
-                std::size_t count = std::accumulate(polygons.begin(),
-                    polygons.end(), std::size_t(0),
-                    SameCounter(target));
-                std::cout << count << "\n";
+                iss >> std::ws;
+                if (iss.eof()) {
+                    std::size_t count = std::accumulate(polygons.begin(),
+                        polygons.end(), std::size_t(0),
+                        SameCounter(target));
+                    std::cout << count << "\n";
+                }
+                else {
+                    std::cout << "<INVALID COMMAND>\n";
+                }
             }
         }
         else {
