@@ -467,7 +467,6 @@ int main(int argc, char* argv[]) {
                     continue;
                 }
 
-                size_t oldSize = polygons.size();
                 auto it = std::unique(polygons.begin(), polygons.end(), IsTargetDuplicate(target));
                 size_t removedCount = std::distance(it, polygons.end());
                 polygons.erase(it, polygons.end());
