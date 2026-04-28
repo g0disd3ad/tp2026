@@ -65,7 +65,14 @@ std::istream& operator>>(std::istream& in, Polygon& dest) {
     tmp.points.resize(n);
     std::copy_n(std::istream_iterator<Point>(in), n,
         tmp.points.begin());
-    if (in) dest = std::move(tmp);
+    if (in) {
+        std::string extra;
+        if (in >> extra) {
+            in.setstate(std::ios::failbit);
+            return in;
+        }
+        dest = std::move(tmp);
+    }
     return in;
 }
 
