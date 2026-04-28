@@ -284,9 +284,14 @@ int main(int argc, char* argv[]) {
                 std::istringstream num_stream(sub);
                 std::size_t n;
                 if (num_stream >> n && num_stream.eof()) {
-                    std::cout << std::accumulate(polygons.begin(),
-                        polygons.end(), 0.0,
-                        AreaIfVertexCount(n)) << "\n";
+                    if (n < 3) {
+                        std::cout << "<INVALID COMMAND>\n";
+                    }
+                    else {
+                        std::cout << std::accumulate(polygons.begin(),
+                            polygons.end(), 0.0,
+                            AreaIfVertexCount(n)) << "\n";
+                    }
                 }
                 else {
                     std::cout << "<INVALID COMMAND>\n";
@@ -350,9 +355,14 @@ int main(int argc, char* argv[]) {
                 std::istringstream num_stream(sub);
                 std::size_t n;
                 if (num_stream >> n && num_stream.eof()) {
-                    std::cout << std::count_if(polygons.begin(),
-                        polygons.end(),
-                        IsNumOfVertexes(n)) << "\n";
+                    if (n < 3) {
+                        std::cout << "<INVALID COMMAND>\n";
+                    }
+                    else {
+                        std::cout << std::count_if(polygons.begin(),
+                            polygons.end(),
+                            IsNumOfVertexes(n)) << "\n";
+                    }
                 }
                 else {
                     std::cout << "<INVALID COMMAND>\n";
@@ -361,7 +371,7 @@ int main(int argc, char* argv[]) {
         }
         else if (main_cmd == "SAME") {
             Polygon target;
-            if (!(iss >> target)) {
+            if (!(iss >> target) || target.points.size() < 3) {
                 std::cout << "<INVALID COMMAND>\n";
             }
             else {
@@ -372,7 +382,7 @@ int main(int argc, char* argv[]) {
         }
         else if (main_cmd == "RMECHO") {
             Polygon target;
-            if (!(iss >> target)) {
+            if (!(iss >> target) || target.points.size() < 3) {
                 std::cout << "<INVALID COMMAND>\n";
             }
             else {
