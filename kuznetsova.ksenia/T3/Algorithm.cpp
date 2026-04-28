@@ -136,45 +136,58 @@ struct IsNumOfVertexes {
     }
 };
 
+//edit
 struct IsRectangle {
     bool operator()(const Polygon& p) const {
         if (p.points.size() != 4) return false;
-        int ax = p.points[1].x - p.points[0].x;
-        int ay = p.points[1].y - p.points[0].y;
-        int bx = p.points[2].x - p.points[1].x;
-        int by = p.points[2].y - p.points[1].y;
-        return (ax * bx + ay * by) == 0;
+
+        std::vector<bool> results(4);
+        std::vector<std::size_t> indices = { 0, 1, 2, 3 };
+
+        std::transform(indices.begin(), indices.end(), results.begin(),
+            [&p](std::size_t i) -> bool {
+                int ax = p.points[(i + 1) % 4].x - p.points[i].x;
+                int ay = p.points[(i + 1) % 4].y - p.points[i].y;
+                int bx = p.points[(i + 2) % 4].x - p.points[(i + 1) % 4].x;
+                int by = p.points[(i + 2) % 4].y - p.points[(i + 1) % 4].y;
+                return (ax * bx + ay * by) == 0;
+            });
+
+        return std::all_of(results.begin(), results.end(),
+            [](bool val) { return val; });
     }
 };
 
-struct PointsShift {
-    int dx, dy;
-};
+//edit
+struct IsSameByShift {
+    const Polygon& target;
+    explicit IsSameByShift(const Polygon& t) : target(t) {}
 
-PointsShift computeShift(const Polygon& a, const Polygon& b) {
-    if (a.points.empty() || b.points.empty()) return { 0, 0 };
-    return { b.points[0].x - a.points[0].x,
-            b.points[0].y - a.points[0].y };
-}
+    bool operator()(const Polygon& p) const {
+        if (p.points.size() != target.points.size()) return false;
+        if (p.points.empty()) return true;
 
-bool isSameByShift(const Polygon& a, const Polygon& b) {
-    if (a.points.size() != b.points.size()) return false;
-    if (a.points.empty()) return true;
-    PointsShift sh = computeShift(a, b);
-    for (std::size_t i = 0; i < a.points.size(); ++i) {
-        if (a.points[i].x + sh.dx != b.points[i].x ||
-            a.points[i].y + sh.dy != b.points[i].y) {
-            return false;
-        }
+        int dx = target.points[0].x - p.points[0].x;
+        int dy = target.points[0].y - p.points[0].y;
+
+        Polygon shifted;
+        shifted.points.resize(p.points.size());
+        std::transform(p.points.begin(), p.points.end(),
+            shifted.points.begin(),
+            [dx, dy](const Point& pt) -> Point {
+                return { pt.x + dx, pt.y + dy };
+            });
+
+        return std::equal(shifted.points.begin(), shifted.points.end(),
+            target.points.begin());
     }
-    return true;
-}
+};
 
 struct SameCounter {
     const Polygon& target;
     explicit SameCounter(const Polygon& t) : target(t) {}
     std::size_t operator()(std::size_t acc, const Polygon& p) const {
-        return acc + (isSameByShift(p, target) ? 1 : 0);
+        return acc + (IsSameByShift(target)(p) ? 1 : 0);
     }
 };
 
