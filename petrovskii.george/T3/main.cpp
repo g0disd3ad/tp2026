@@ -90,6 +90,27 @@ bool segmentIntersect(const Point& a, const Point& b, const Point& c, const Poin
     return false;
 }
 
+bool pointInPolygon(const Point& pt, const Polygon& poly) {
+    int n = poly.points.size();
+    int count = 0;
+    for (int i = 0; i < n; ++i) {
+        const Point& a = poly.points[i];
+        const Point& b = poly.points[(i + 1) % n];
+
+        if (cross(a, b, pt) == 0 && onSegment(a, b, pt)) {
+            return true;
+        }
+
+        if ((a.y > pt.y) != (b.y > pt.y)) {
+            double x_intersect = a.x + static_cast<double>(pt.y - a.y) * (b.x - a.x) / (b.y - a.y);
+            if (pt.x < x_intersect) {
+                count++;
+            }
+        }
+    }
+    return count % 2 == 1;
+}
+
 bool polygonIntersect(const Polygon& a, const Polygon& b) {
     size_t na = a.points.size();
     size_t nb = b.points.size();
@@ -107,6 +128,14 @@ bool polygonIntersect(const Polygon& a, const Polygon& b) {
             }
         }
     }
+
+    for (const Point& pt : a.points) {
+        if (pointInPolygon(pt, b)) return true;
+    }
+    for (const Point& pt : b.points) {
+        if (pointInPolygon(pt, a)) return true;
+    }
+
     return false;
 }
 
@@ -402,6 +431,8 @@ int main(int argc, char* argv[]) {
 
         else {
             std::cout << "<INVALID COMMAND>\n";
+            std::string clearBuffer;
+            std::getline(std::cin, clearBuffer);
         }
     }
     return 0;
