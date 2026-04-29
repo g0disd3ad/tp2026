@@ -129,27 +129,15 @@ bool polygonIntersect(const Polygon& a, const Polygon& b) {
         }
     }
 
-
-    bool allAinB = true;
     for (const Point& pt : a.points) {
-        if (!pointInPolygon(pt, b)) {
-            allAinB = false;
-            break;
+        if (pointInPolygon(pt, b)) {
+            return true;
         }
     }
-    if (allAinB) {
-        return true;
-    }
-
-    bool allBinA = true;
     for (const Point& pt : b.points) {
-        if (!pointInPolygon(pt, a)) {
-            allBinA = false;
-            break;
+        if (pointInPolygon(pt, a))  {
+            return true;
         }
-    }
-    if (allBinA) {
-        return true;
     }
 
     return false;
@@ -253,9 +241,6 @@ struct IntersectWithTarget {
     IntersectWithTarget(const Polygon& t) : target(t) {}
 
     bool operator()(const Polygon& p) const {
-        if (p == target) {
-            return false;
-        }
         return polygonIntersect(p, target);
     }
 } ;
