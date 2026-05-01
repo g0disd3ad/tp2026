@@ -54,12 +54,18 @@ struct Polygon {
         if (points.size() < 3) return 0.0;
         std::vector<size_t> indices(points.size());
         std::iota(indices.begin(), indices.end(), 0);
-        double twiceArea = std::accumulate(indices.begin(), indices.end(), 0.0,
-            [this](double sum, size_t i) {
-                const Point& p1 = points[i];
-                const Point& p2 = points[(i + 1) % points.size()];
+
+        struct TwiceAreaFunctor {
+            const std::vector<Point>& pts;
+            TwiceAreaFunctor(const std::vector<Point>& p) : pts(p) {}
+            double operator()(double sum, size_t i) const {
+                const Point& p1 = pts[i];
+                const Point& p2 = pts[(i + 1) % pts.size()];
                 return sum + (p1.x * p2.y - p2.x * p1.y);
-            });
+            }
+        };
+
+        double twiceArea = std::accumulate(indices.begin(), indices.end(), 0.0, TwiceAreaFunctor(points));
         return std::abs(twiceArea) / 2.0;
     }
 
@@ -213,20 +219,32 @@ Polygon polygonFromArgs(const std::vector<std::string>& args) {
 
 struct RemoveConsecutiveDuplicates {
     const Polygon& target;
-    mutable bool skipNext;
+    mutable bool shouldDelete;
 
-    RemoveConsecutiveDuplicates(const Polygon& t) : target(t), skipNext(false) {}
+    RemoveConsecutiveDuplicates(const Polygon& t) : target(t), shouldDelete(false) {}
 
     bool operator()(const Polygon& p) const {
         if (p == target) {
-            if (skipNext) {
+            if (shouldDelete) {
                 return true;
             }
-            skipNext = true;
+            shouldDelete = true;
             return false;
         }
-        skipNext = false;
+        shouldDelete = false;
         return false;
+    }
+};
+
+struct MinPointFunctor {
+    Point operator()(const Point& a, const Point& b) const {
+        return Point(std::min(a.x, b.x), std::min(a.y, b.y));
+    }
+};
+
+struct MaxPointFunctor {
+    Point operator()(const Point& a, const Point& b) const {
+        return Point(std::max(a.x, b.x), std::max(a.y, b.y));
     }
 };
 
@@ -416,19 +434,15 @@ int main(int argc, char* argv[]) {
                 Polygon target = polygonFromArgs(args);
 
                 if (polygons.empty()) {
-                    std::cout << "<TRUE>" << std::endl;
+                    std::cout << "<FALSE>" << std::endl;
                     continue;
                 }
 
                 Point globalMin = std::accumulate(polygons.begin(), polygons.end(), polygons[0].getMinPoint(),
-                    std::bind([](const Point& a, const Point& b) -> Point {
-                        return Point(std::min(a.x, b.x), std::min(a.y, b.y));
-                        }, _1, std::bind(&Polygon::getMinPoint, _2)));
+                    std::bind(MinPointFunctor(), _1, std::bind(&Polygon::getMinPoint, _2)));
 
                 Point globalMax = std::accumulate(polygons.begin(), polygons.end(), polygons[0].getMaxPoint(),
-                    std::bind([](const Point& a, const Point& b) -> Point {
-                        return Point(std::max(a.x, b.x), std::max(a.y, b.y));
-                        }, _1, std::bind(&Polygon::getMaxPoint, _2)));
+                    std::bind(MaxPointFunctor(), _1, std::bind(&Polygon::getMaxPoint, _2)));
 
                 bool result = target.isInsideBoundingBox(globalMin, globalMax);
                 std::cout << (result ? "<TRUE>" : "<FALSE>") << std::endl;
