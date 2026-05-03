@@ -339,6 +339,10 @@ int main(int argc, char* argv[]) {
 
                 std::cout << res.maxSeq << std::endl;
 
+            } else {
+                std::cout << "<INVALID COMMAND>\n";
+                std::string clearBuffer;
+                std::getline(std::cin, clearBuffer);
             }
 
         } catch (std::exception& e) {
